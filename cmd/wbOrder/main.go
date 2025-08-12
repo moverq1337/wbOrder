@@ -1,26 +1,20 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	models2 "github.com/moverq1337/wbOrder/internal/models"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/moverq1337/wbOrder/internal/app/db"
 )
 
+var migrate = flag.Bool("migrate", false, "Run database migration")
+
 func main() {
-	dsn := "host=100.64.213.196 user=user password=admin dbname=wb port=5432 sslmode=disable TimeZone=Europe/Moscow"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		fmt.Println("No base")
-		return
+	flag.Parse()
+	db.Connection()
+	if *migrate {
+		db.Migration()
 	} else {
-		fmt.Println("Connect successfull")
+		fmt.Println("Migration skipped, because u run it with out flag (-migration)")
 	}
 
-	err = db.AutoMigrate(&models2.Order{}, &models2.Item{}, &models2.Payment{}, &models2.Delivery{})
-	if err != nil {
-		fmt.Println("AutoMigrate failed:", err)
-		return
-	}
-	fmt.Println("AutoMigrate successful")
 }
