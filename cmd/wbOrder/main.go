@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	models2 "github.com/moverq1337/wbOrder/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	models2 "wbTest/internal/models"
 )
 
 func main() {
