@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"github.com/moverq1337/wbOrder/internal/app/db"
 	"github.com/moverq1337/wbOrder/internal/kafka"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 var migrate = flag.Bool("migrate", false, "Run database migration")
@@ -29,17 +26,15 @@ func main() {
 		GroupID: "order-group",
 		DB:      db.DataBase,
 	}
-	consumer := kafka.NewConsumer(kafkaCfg)
+	serviceCfg := kafka.ServiceConfig{
+		ConsumerConfig: kafkaCfg,
+		DB:             db.DataBase,
+	}
+	service := kafka.NewService(serviceCfg)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go kafka.ConsumeMessages(ctx, consumer, db.DataBase)
-
-	sChan := make(chan os.Signal, 1)
-	signal.Notify(sChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sChan
-
-	consumer.Close()
-	fmt.Println("service stopped")
+	ctx := context.Background()
+	if err := service.Start(ctx); err != nil {
+		fmt.Printf("Ошибка запуска: %v\n", err)
+	}
 
 }
