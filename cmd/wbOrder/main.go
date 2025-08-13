@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/moverq1337/wbOrder/internal/app/db"
+	"github.com/moverq1337/wbOrder/internal/app/redis"
 	"github.com/moverq1337/wbOrder/internal/kafka"
 )
 
@@ -13,6 +14,10 @@ var migrate = flag.Bool("migrate", false, "Run database migration")
 func main() {
 	flag.Parse()
 	db.Connection()
+
+	if err := redis.Connect(); err != nil {
+		fmt.Printf("Редис не завелся, продолжим без кэша", err)
+	}
 
 	if *migrate {
 		db.Migration()
