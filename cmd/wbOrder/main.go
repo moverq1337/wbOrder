@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/gin-contrib/cors"
 	"log"
 	"net/http"
 	"os"
@@ -81,6 +82,7 @@ func main() {
 
 func startGinServer(ctx context.Context) {
 	r := gin.Default()
+	r.Use(cors.Default())
 	r.GET("/order/:orderUID", http2.OrderHandler)
 
 	srv := &http.Server{

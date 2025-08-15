@@ -29,7 +29,12 @@ func OrderHandler(c *gin.Context) {
 	}
 
 	var order models.Order
-	if err := db.DataBase.First(&order, "order_uid = ?", orderUID).Error; err != nil {
+	if err := db.DataBase.
+		Preload("Delivery").
+		Preload("Payment").
+		Preload("Items").
+		Where("order_uid = ?", orderUID).
+		First(&order).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"message": "order not found"})
 		return
 	}
