@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"log"
 	"os"
+	"time"
 )
 
 var Client *redis.Client
@@ -34,7 +35,7 @@ func InitializeCache() error {
 		return fmt.Errorf("БД не подключается")
 	}
 	var orders []models.Order
-	if err := db.DataBase.Find(&orders).Error; err != nil {
+	if err := db.DataBase.Order("date_created DESC").Limit(20).Find(&orders).Error; err != nil {
 		return fmt.Errorf("Ошибка загрузки заказов из БД: %v", err)
 	}
 
@@ -44,7 +45,7 @@ func InitializeCache() error {
 			log.Printf("Ошибка сериализации заказа %s: %v", order.OrderUID, err)
 			continue
 		}
-		if err = Client.Set(context.Background(), order.OrderUID, orderJSON, 0).Err(); err != nil {
+		if err = Client.Set(context.Background(), order.OrderUID, orderJSON, time.Minute*10).Err(); err != nil {
 			log.Printf("Ошибка кэширования заказа %s: %v", order.OrderUID, err)
 		}
 	}

@@ -28,46 +28,56 @@ func NewConsumer(cfg ConsumerConfig) *kafka.Reader {
 }
 
 func ConsumeMessages(ctx context.Context, reader *kafka.Reader, db *gorm.DB) {
-	if err := redis.Connect(); err != nil {
-		log.Printf("Ошибка подключения к Redis: %v без кэша", err)
+	if redis.Client == nil {
+		log.Println("Redis недоступен, работаем без кэша")
 	}
+
 	for {
-		msg, err := reader.ReadMessage(ctx)
-		if err != nil {
-			log.Printf("Consumer error(Ошибка чтения: %v):", err)
-			continue
-		}
-
-		var order models.Order
-		if err = json.Unmarshal(msg.Value, &order); err != nil {
-			log.Println("Ошибка парсинга", err)
-			continue
-		}
-
-		tx := db.Begin()
-		if err = tx.Create(&order).Error; err != nil {
-			tx.Rollback()
-			log.Printf("Ошибка сохранения заказа %s: %v", order.OrderUID, err)
-			continue
-		}
-		tx.Commit()
-
-		orderJSON, err := json.Marshal(order)
-		if err != nil {
-			log.Printf("Ошибка сериализации заказа %s: %v", order.OrderUID, err)
-			continue
-		}
-
-		if redis.Client != nil {
-			err = redis.Client.Set(context.Background(), order.OrderUID, orderJSON, time.Hour).Err()
+		select {
+		case <-ctx.Done():
+			log.Println("Получен сигнал остановки Kafka consumer")
+			return
+		default:
+			msg, err := reader.ReadMessage(ctx)
 			if err != nil {
-				log.Printf("Ошибка сохранения в redis %s: %v", order.OrderUID, err)
-			} else {
-				log.Printf("Заказ %s успешно прошел кэширование", order.OrderUID)
+				if ctx.Err() != nil {
+					return
+				}
+				log.Printf("Ошибка чтения: %v", err)
+				continue
+			}
+
+			if !json.Valid(msg.Value) {
+				log.Printf("Невалидный JSON: %s", string(msg.Value))
+				continue
+			}
+
+			var order models.Order
+			if err = json.Unmarshal(msg.Value, &order); err != nil {
+				log.Printf("Ошибка парсинга: %v", err)
+				continue
+			}
+
+			tx := db.Begin()
+			if err = tx.Create(&order).Error; err != nil {
+				tx.Rollback()
+				log.Printf("Ошибка сохранения %s: %v", order.OrderUID, err)
+				continue
+			}
+			tx.Commit()
+
+			orderJSON, err := json.Marshal(order)
+			if err != nil {
+				log.Printf("Ошибка сериализации %s: %v", order.OrderUID, err)
+				continue
+			}
+
+			if redis.Client != nil {
+				err = redis.Client.Set(context.Background(), order.OrderUID, orderJSON, time.Minute*10).Err()
+				if err != nil {
+					log.Printf("Ошибка Redis %s: %v", order.OrderUID, err)
+				}
 			}
 		}
-
-		log.Printf("Получено и сохр: key=%s, value=%s\n", string(msg.Key), string(msg.Value))
 	}
-
 }

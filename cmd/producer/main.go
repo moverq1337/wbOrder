@@ -63,7 +63,6 @@ func main() {
 		"delivery_service":   "meest",
 		"shardkey":           "9",
 		"sm_id":              99,
-		"date_created":       "2021-11-26T06:22:19Z",
 		"oof_shard":          "1",
 	}
 
@@ -80,12 +79,14 @@ func main() {
 		for k, v := range baseMessageMap {
 			messageMap[k] = v
 		}
+
+		messageMap["date_created"] = time.Now().UTC().Format(time.RFC3339)
 		messageMap["order_uid"] = orderUID
 		messageMap["payment"].(map[string]interface{})["transaction"] = orderUID
 
 		messageBytes, err := json.Marshal(messageMap)
 		if err != nil {
-			fmt.Printf("Ошибка  JSON: %v\n", err)
+			fmt.Printf("Ошибка JSON: %v\n", err)
 			return
 		}
 
